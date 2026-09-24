@@ -1,0 +1,6 @@
+{
+  "name": "Venture Infotech Support 24",
+  "description": "Dedicated 24/7 Calling IVR and Support Assistant for Venture Infotech. Featuring voice executive Isha for store performance, ad testing, plan verification, and backup execution plans.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
