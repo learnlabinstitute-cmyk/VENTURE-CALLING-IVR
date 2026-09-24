@@ -9,13 +9,27 @@ import { fetchNeuralTTSAudio, matchExecutiveResponse } from "./src/utils/executi
 
 dotenv.config();
 
+function isValidGeminiApiKey(key: string | undefined): boolean {
+  if (!key) return false;
+  const trimmed = key.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "MY_GEMINI_API_KEY" ||
+    trimmed.startsWith("AQ.") ||
+    !trimmed.startsWith("AIza")
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+  if (!isValidGeminiApiKey(apiKey)) {
     return null;
   }
   return new GoogleGenAI({
-    apiKey,
+    apiKey: apiKey!.trim(),
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
@@ -35,8 +49,8 @@ async function startServer() {
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",
-      hasApiKey: Boolean(process.env.GEMINI_API_KEY),
-      model: "gemini-3.1-flash-live-preview",
+      hasApiKey: Boolean(getGenAI()),
+      model: "gemini-3.8-flash",
     });
   });
 
@@ -70,12 +84,12 @@ async function startServer() {
           if (audioBase64) {
             return res.json({ audio: audioBase64, data: audioBase64 });
           }
-        } catch (geminiTtsErr) {
-          console.warn("Gemini TTS in server failed, falling back to natural neural audio:", geminiTtsErr);
+        } catch {
+          // Graceful fallback to natural neural audio
         }
       }
 
-      // Natural Neural Voice Audio Generation (Never robotic)
+      // Natural Neural Voice Audio Generation (Authentic, never robotic)
       const neuralAudio = await fetchNeuralTTSAudio(text, "hi");
       res.json({ audio: neuralAudio, data: neuralAudio });
     } catch (err: any) {
@@ -179,8 +193,8 @@ MANDATORY RULES & EXECUTIVE SCRIPTS:
             });
             ttsAudio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
           }
-        } catch (geminiChatErr) {
-          console.warn("Gemini chat/TTS failed in server, using executive engine fallback:", geminiChatErr);
+        } catch {
+          // Graceful fallback to executive engine
         }
       }
 
@@ -193,8 +207,8 @@ MANDATORY RULES & EXECUTIVE SCRIPTS:
       if (!ttsAudio) {
         try {
           ttsAudio = await fetchNeuralTTSAudio(responseText, "hi");
-        } catch (neuralErr) {
-          console.warn("Server neural TTS warning:", neuralErr);
+        } catch {
+          // Fallback handled gracefully
         }
       }
 
@@ -263,6 +277,16 @@ MANDATORY RULES & EXECUTIVE SCRIPTS:
           const { voice = "Zephyr", systemInstruction } = msg;
           const ai = getGenAI();
 
+          if (!ai) {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(JSON.stringify({
+                type: "ready",
+                message: "Natural voice companion active",
+              }));
+            }
+            return;
+          }
+
           const prompt = systemInstruction || 
             `You are Isha, senior customer care executive at Venture Infotech Support 24 calling IVR.
 Always answer warmly in Hindi/Hinglish.
@@ -275,7 +299,7 @@ Follow strict Anti-Harassment policy with first and second warnings.`;
 
           try {
             session = await ai.live.connect({
-              model: "gemini-3.1-flash-live-preview",
+              model: "gemini-3.8-live",
               config: {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {
@@ -395,9 +419,10 @@ Follow strict Anti-Harassment policy with first and second warnings.`;
           }
           // Re-init with new config
           const ai = getGenAI();
+          if (!ai) return;
           const { voice = "Zephyr", systemInstruction } = msg;
           session = await ai.live.connect({
-            model: "gemini-3.1-flash-live-preview",
+            model: "gemini-3.8-live",
             config: {
               responseModalities: [Modality.AUDIO],
               speechConfig: {

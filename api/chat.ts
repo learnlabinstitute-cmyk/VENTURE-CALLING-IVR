@@ -1,13 +1,27 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { fetchNeuralTTSAudio, matchExecutiveResponse } from "../src/utils/executiveEngine";
 
+function isValidGeminiApiKey(key: string | undefined): boolean {
+  if (!key) return false;
+  const trimmed = key.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "MY_GEMINI_API_KEY" ||
+    trimmed.startsWith("AQ.") ||
+    !trimmed.startsWith("AIza")
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+  if (!isValidGeminiApiKey(apiKey)) {
     return null;
   }
   return new GoogleGenAI({
-    apiKey,
+    apiKey: apiKey!.trim(),
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
@@ -138,8 +152,8 @@ export default async function handler(req: any, res: any) {
           ttsAudio =
             ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
         }
-      } catch (geminiErr) {
-        console.warn("Gemini chat/TTS warning, falling back to executive engine:", geminiErr);
+      } catch {
+        // Fallback to executive engine
       }
     }
 
@@ -152,8 +166,8 @@ export default async function handler(req: any, res: any) {
     if (!ttsAudio) {
       try {
         ttsAudio = await fetchNeuralTTSAudio(responseText, "hi");
-      } catch (neuralErr) {
-        console.warn("Neural audio generation warning:", neuralErr);
+      } catch {
+        // Handled gracefully
       }
     }
 

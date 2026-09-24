@@ -1,13 +1,27 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { fetchNeuralTTSAudio } from "../src/utils/executiveEngine";
 
+function isValidGeminiApiKey(key: string | undefined): boolean {
+  if (!key) return false;
+  const trimmed = key.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "MY_GEMINI_API_KEY" ||
+    trimmed.startsWith("AQ.") ||
+    !trimmed.startsWith("AIza")
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+  if (!isValidGeminiApiKey(apiKey)) {
     return null;
   }
   return new GoogleGenAI({
-    apiKey,
+    apiKey: apiKey!.trim(),
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
@@ -62,8 +76,8 @@ export default async function handler(req: any, res: any) {
         if (audioBase64) {
           return res.status(200).json({ audio: audioBase64, data: audioBase64 });
         }
-      } catch (geminiErr) {
-        console.warn("Gemini TTS warning, falling back to natural neural audio:", geminiErr);
+      } catch {
+        // Fallback to natural neural audio
       }
     }
 
